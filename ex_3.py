@@ -1,8 +1,8 @@
-import numpy
+import numpy as np
 
 
 def tanh(x):
-    return (1.0 - numpy.exp(-2*x))/(1.0 + numpy.exp(-2*x))
+    return (1.0 - np.exp(-2*x))/(1.0 + np.exp(-2*x))
 
 
 def tanh_derivative(x):
@@ -35,7 +35,7 @@ class NeuralNetwork:
 
         # range of weight values (-1,1)
         for layer in range(self.layers - 1):
-            w = 2 * numpy.random.rand(net_arch[layer] + 1, net_arch[layer + 1]) - 1
+            w = 2 * np.random.rand(net_arch[layer] + 1, net_arch[layer + 1]) - 1
             self.weights.append(w)
 
     #########
@@ -53,23 +53,25 @@ class NeuralNetwork:
 
         # Add bias units to the input layer -
         # add a "1" to the input data (the always-on bias neuron)
-        ones = numpy.ones((1, data.shape[0]))
-        Z = numpy.concatenate((ones.T, data), axis=1)
+        ones = np.ones((1, data.shape[0]))
+        Z = np.concatenate((ones.T, data), axis=1)
 
         for epoch in range(epochs):
+            # Shuffle, Inner loop on each x
+
             # We will now go ahead and set up our feed-forward propagation:
-            sample = numpy.random.randint(data.shape[0])
+            sample = np.random.randint(data.shape[0])
             y = [Z[sample]]
             for i in range(len(self.weights) - 1):
-                activation = numpy.dot(y[i], self.weights[i])
+                activation = np.dot(y[i], self.weights[i])
                 activity = self.activity(activation)
 
                 # add the bias for the next layer
-                activity = numpy.concatenate((numpy.ones(1), numpy.array(activity)))
+                activity = np.concatenate((np.ones(1), np.array(activity)))
                 y.append(activity)
 
             # last layer
-            activation = numpy.dot(y[-1], self.weights[-1])
+            activation = np.dot(y[-1], self.weights[-1])
             activity = self.activity(activation)
             y.append(activity)
 
@@ -102,10 +104,10 @@ class NeuralNetwork:
         # x:      single input data
         #########
         def predict_single_data(self, x):
-            val = numpy.concatenate((numpy.ones(1).T, numpy.array(x)))
+            val = np.concatenate((np.ones(1).T, np.array(x)))
             for i in range(0, len(self.weights)):
-                val = self.activity(numpy.dot(val, self.weights[i]))
-                val = numpy.concatenate((numpy.ones(1).T, numpy.array(val)))
+                val = self.activity(np.dot(val, self.weights[i]))
+                val = np.concatenate((np.ones(1).T, np.array(val)))
             return val[1]
 
         #########
@@ -120,25 +122,25 @@ class NeuralNetwork:
         def predict(self, X):
             Y = None
             for x in X:
-                y = numpy.array([[self.predict_single_data(x)]])
+                y = np.array([[self.predict_single_data(x)]])
                 if Y == None:
                     Y = y
                 else:
-                    Y = numpy.vstack((Y, y))
+                    Y = np.vstack((Y, y))
             return Y
 
 
-numpy.random.seed(0)
+# np.random.seed(0)
 
 # Initialize the NeuralNetwork with
-nn = NeuralNetwork([2, 16, 16, 1])
+nn = NeuralNetwork([16, 32, 10, 1])
 
 # Set the input data
-X = numpy.array([[0, 0], [0, 1],
+X = np.array([[0, 0], [0, 1],
                 [1, 0], [1, 1]])
 
 # Set the labels, the correct results for the xor operation
-y = numpy.array([0, 1,
+y = np.array([0, 1,
                  1, 0])
 
 # Call the fit function and train the network for a chosen number of epochs
