@@ -19,113 +19,87 @@ def tanh_derivative(z):
 
 
 class NeuralNetwork:
+    def initialize_weights(self):
+        for layer in range(len(self.layers) - 1):
+            # Add 1 for the bias too
+            w = np.random.normal(0, 0.1, (self.layers[layer] + 1, self.layers[layer + 1]))
+            self.weights.append(w)
+
     def __init__(self, layers):
-        self.activation_function = tanh
-        self.activation_function_derivative = tanh_derivative
-        # self.layers = len(net_arch)
-        self.steps_per_epoch = 1000
         self.layers = layers
         self.weights = []
 
-        # range of weight values (-1,1)
-        for layer in range(len(self.layers) - 1):
-            w = np.random.normal(0, 0.1, (self.layers[layer] + 1, self.layers[layer + 1]))
-            # w = 2 * np.random.rand(self.layers[layer] + 1, self.layers[layer + 1]) - 1
-            self.weights.append(w)
+        self.activation_function = tanh
+        self.activation_function_derivative = tanh_derivative
 
-    #########
-    # the fit function will train our network. In the last line,
-    # `nn` represents the `NeuralNetwork` class and `predict` is the function in the NeuralNetwork class
-    # that we will define later.
-    #
-    # parameters
-    # ----------
-    # self:    the class object itself
-    # data:    the set of all possible pairs of booleans True or False indicated by the integers 1 or 0
-    # labels:  the result of the logical operation 'xor' on each of those input pairs
-    #########
-    def fit(self, data, labels, learning_rate=0.1, epochs=100, runs_per_epoch=15000):
+        self.initialize_weights()
 
-        # Add bias units to the input layer -
-        # add a "1" to the input data (the always-on bias neuron)
+    def forward(self, x):
+        all_layers = [x]
+        for i in range(len(self.weights) - 1):
+            v = np.dot(all_layers[i], self.weights[i])
+            v = self.activation_function(v)
+
+            # add the bias for the next layer
+            v = np.concatenate((np.ones(1), np.array(v)))
+            all_layers.append(v)
+
+        # last layer
+        v = np.dot(all_layers[-1], self.weights[-1])
+        v = self.activation_function(v)
+        all_layers.append(v)
+        return all_layers
+
+    def backpropagation(self, y, all_layers_of_x):
+
+        # Calculate error and delta for the last layer
+        last_layer = all_layers_of_x[-1]
+        error = y - last_layer
+        deltas = [error * self.activation_function_derivative(last_layer)]
+
+        # Calculate errors and deltas for the other layers
+        for i in range(len(self.layers) - 2, 0, -1):
+            error = deltas[-1].dot(self.weights[i][1:].T)
+            error = error * self.activation_function_derivative(all_layers_of_x[i][1:])
+            deltas.append(error)
+
+        # Last layer delta should be in the end
+        deltas.reverse()
+        return deltas
+
+    def train(self, data, labels, learning_rate=0.1, epochs=100, runs_per_epoch=15000):
+
+        # Add biases for each data
         ones = np.ones((1, data.shape[0]))
-        Z = np.concatenate((ones.T, data), axis=1)
+        biased_data = np.concatenate((ones.T, data), axis=1)
 
         for i in range(epochs * runs_per_epoch):
             print "iteration: ", i
-            # Shuffle, Inner loop on each x
-            # data, labels = shuffle_arrays(data, labels)
 
-            # for x, label in data, labels:
-            # We will now go ahead and set up our feed-forward propagation:
-            sample = np.random.randint(data.shape[0])
-            y = [Z[sample]]
-            for i in range(len(self.weights) - 1):
-                activation = np.dot(y[i], self.weights[i])
-                activity = self.activation_function(activation)
+            # Get random x
+            random_index = np.random.randint(data.shape[0])
+            x = biased_data[random_index]
+            y = labels[random_index]
 
-                # add the bias for the next layer
-                activity = np.concatenate((np.ones(1), np.array(activity)))
-                y.append(activity)
+            # Forward Propagation
+            all_layers_for_current_x = self.forward(x)
 
-            # last layer
-            activation = np.dot(y[-1], self.weights[-1])
-            activity = self.activation_function(activation)
-            y.append(activity)
+            delta_vec = self.backpropagation(y, all_layers_for_current_x)
 
-            # Now we do our back-propagation of the error to adjust the weights:
-            error = labels[sample] - y[-1]
-            delta_vec = [error * self.activation_function_derivative(y[-1])]
+            self.update_rule(all_layers_for_current_x, delta_vec, learning_rate)
 
-            # we need to begin from the back, from the next to last layer
-            for i in range(len(self.layers) - 2, 0, -1):
-                error = delta_vec[-1].dot(self.weights[i][1:].T)
-                error = error * self.activation_function_derivative(y[i][1:])
-                delta_vec.append(error)
+    def update_rule(self, all_layers, delta_vec, learning_rate):
+        for i in range(len(self.weights)):
+            layer = all_layers[i].reshape(1, self.layers[i] + 1)
+            delta = delta_vec[i].reshape(1, self.layers[i + 1])
+            self.weights[i] += learning_rate * layer.T.dot(delta)
 
-            # Now we need to set the values from back to front
-            delta_vec.reverse()
-
-            # Finally, we adjust the weights, using the backpropagation rules
-            for i in range(len(self.weights)):
-                layer = y[i].reshape(1, self.layers[i] + 1)
-                delta = delta_vec[i].reshape(1, self.layers[i + 1])
-                self.weights[i] += learning_rate * layer.T.dot(delta)
-
-    #########
-    # the predict function is used to check the prediction result of
-    # this neural network.
-    #
-    # parameters
-    # ----------
-    # self:   the class object itself
-    # x:      single input data
-    #########
-    def predict_single_data(self, x):
+    def get_x_prediction(self, x):
         val = np.concatenate((np.ones(1).T, np.array(x)))
         for i in range(0, len(self.weights)):
             val = self.activation_function(np.dot(val, self.weights[i]))
             val = np.concatenate((np.ones(1).T, np.array(val)))
         return val[1]
-
-    #########
-    # the predict function is used to check the prediction result of
-    # this neural network.
-    #
-    # parameters
-    # ----------
-    # self:   the class object itself
-    # x:      the input data array
-    #########
-    def predict(self, X):
-        Y = None
-        for x in X:
-            y = np.array([[self.predict_single_data(x)]])
-            if Y == None:
-                Y = y
-            else:
-                Y = np.vstack((Y, y))
-        return Y
 
 
 def load_date_from_file(file_name):
@@ -138,7 +112,6 @@ def load_date_from_file(file_name):
     X = [item[0] for item in data]
     y = [int(item[1]) for item in data]
 
-    # X = [list(x) for x in X]
     pure_x = []
     for x in X:
         temp = []
@@ -170,7 +143,7 @@ def get_prediction_class(prediction):
 def calculate_success(validation_x, validation_y):
     success = 0
     for x, y in zip(validation_x, validation_y):
-        prediction = nn.predict_single_data(x)
+        prediction = nn.get_x_prediction(x)
         prediction = get_prediction_class(prediction)
         if y == prediction:
             success += 1
@@ -178,23 +151,25 @@ def calculate_success(validation_x, validation_y):
     return float(success) / len(validation_y) * 100
 
 
-# Initialize the NeuralNetwork with
-nn = NeuralNetwork([16, 32, 10, 1])
-
+# Load data from file
 X, y = load_date_from_file("nn1.txt")
 X = np.array(X)
 y = np.array(y)
 
+# Shuffle data
 train_x, train_y = shuffle_arrays(X, y)
 
+# Split data to train set and validation set
 validation_x, validation_y = train_x[-5000:], train_y[-5000:]
 train_x, train_y = train_x[:15000], train_y[:15000]
 
+# Initialize the network
+nn = NeuralNetwork([16, 32, 10, 1])
 
-# Call the fit function and train the network for a chosen number of epochs
-nn.fit(train_x, train_y, epochs=10, learning_rate=0.01)
+# Train the network on the train set
+nn.train(train_x, train_y, epochs=10, learning_rate=0.01)
 
-# Show the prediction results
+# Test the network on the validation set
 print("Final prediction")
 success = calculate_success(validation_x, validation_y)
 print "Success: ", success, "%"
