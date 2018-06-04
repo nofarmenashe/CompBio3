@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import pickle
 
 
 def sigmoid(z):
@@ -152,7 +153,7 @@ def calculate_success(validation_x, validation_y):
 
 
 # Load data from file
-X, y = load_date_from_file("nn0.txt")
+X, y = load_date_from_file("nn1.txt")
 X = np.array(X)
 y = np.array(y)
 
@@ -169,7 +170,5 @@ nn = NeuralNetwork([16, 32, 10, 1])
 # Train the network on the train set
 nn.train(train_x, train_y, epochs=10, learning_rate=0.01)
 
-# Test the network on the validation set
-print("Final prediction")
-success = calculate_success(validation_x, validation_y)
-print "Success: ", success, "%"
+# Write weights to file
+pickle.dump(nn.weights, open("w1", "wb"))
